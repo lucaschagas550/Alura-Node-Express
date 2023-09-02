@@ -1,0 +1,2 @@
+#Ignorar a pasta node_modules pq contem dependencias dos pacotes
+node_modules
