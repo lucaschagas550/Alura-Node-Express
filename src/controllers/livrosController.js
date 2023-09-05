@@ -1,14 +1,24 @@
 import NaoEncontrado from "../erros/NaoEncontrado.js";
-import { livros } from "../models/index.js"; //index esta exportando um objeto com os livros
+import { autores, livros } from "../models/index.js"; //index esta exportando um objeto com os livros
 
 class LivroController {
   static listarLivros = async (req, res, next) => {
     try {
-      const livrosResultado = await livros.find().populate("autor").exec();
+      // let {//valores default da paginacao
+      //   limite = 5,
+      //   pagina = 1,
+      //   campoOrdenacao = "_id",
+      //   ordem = -1,
+      // } = req.query;
 
-      res.status(200).json(livrosResultado);
+      //Ao fazer a paginacao nao esta usando o await pq esta sendo guardado a query retornado do moogose na propriedade req.resultado
+      const buscaLivros = livros.find().populate("autor");
+
+      req.resultado = buscaLivros; //guarda informacoes para ser enviado de um midddleware para outro
+
+      next(); // indicando a próxima função de middleware
     } catch (erro) {
-      next(erro);
+      next(erro); //  indicando a próxima função de middleware
     }
   };
 
@@ -73,17 +83,58 @@ class LivroController {
     }
   };
 
-  static listarLivroPorEditora = async (req, res, next) => {
+  //Busca por titulo e editora
+  static listarLivroPorFiltro = async (req, res, next) => {
     try {
-      const editora = req.query.editora;
+      const busca = await processaBusca(req.query);
 
-      const livrosResultado = await livros.find({ editora: editora });
+      //Ele está extraindo os valores das chaves editora e titulo da consulta e atribuindo-os às variáveis editora e titulo.
+      // const { editora, titulo } = req.query;
+      // console.log(`${editora} ${titulo}`);
 
-      res.status(200).send(livrosResultado);
+      // const busca = {}; //cria um objeto vazio
+      // if (editora) busca.editora = editora; //verifca se nao esta vazio e seta o valor no objeto
+      // if (titulo) busca.titulo = { $regex: titulo, $options: "i" }; //Regex para o moongose o "I" nao identifica maisculas ou minusculas
+
+      if (busca !== null) {
+        const livrosResultado = livros.find(busca).populate("autor");
+        req.resultado = livrosResultado;
+        next();
+      } else {
+        res.status(200).send([]);
+      }
     } catch (erro) {
       next(erro);
     }
   };
+}
+
+async function processaBusca(parametros) {
+  const { editora, titulo, minPaginas, maxPaginas, nomeAutor } = parametros;
+
+  let busca = {};
+
+  if (editora) busca.editora = editora;
+  if (titulo) busca.titulo = { $regex: titulo, $options: "i" }; //Regex para o moongose o "I" nao identifica maisculas ou minusculas
+
+  if (minPaginas || maxPaginas) busca.numeroPaginas = {};
+
+  // gte = Greater Than or Equal = Maior ou igual que
+  if (minPaginas) busca.numeroPaginas.$gte = minPaginas;
+  // lte = Less Than or Equal = Menor ou igual que
+  if (maxPaginas) busca.numeroPaginas.$lte = maxPaginas;
+
+  if (nomeAutor) {
+    const autor = await autores.findOne({ nome: nomeAutor });
+
+    if (autor !== null) {
+      busca.autor = autor._id;
+    } else {
+      busca = null;
+    }
+  }
+
+  return busca;
 }
 
 export default LivroController;

@@ -4,8 +4,10 @@ import { autores } from "../models/index.js"; //index esta exportando um objeto 
 class AutorController {
   static listarAutores = async (req, res, next) => {
     try {
-      const autoresResultados = await autores.find();
-      res.status(200).json(autoresResultados);
+      const autoresResultados = autores.find();
+      req.resultad = autoresResultados;
+
+      next();
     } catch (erro) {
       next(erro);
     }
